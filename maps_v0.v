@@ -2193,15 +2193,22 @@ Hint Rewrite
   : rew_map_specs.
 
 
+Ltac rewrite_get_put K V :=
+  let keq := constr:(_: DecidableEq K) in
+  rewrite? (@get_put K V _ keq) in *.
+
 Ltac canonicalize_map_hyp H :=
   repeat autorewrite with rew_set_op_specs rew_map_specs in H;
   try exists_to_forall H;
   try specialize (H eq_refl).
 
-Ltac canonicalize_all_map_hyps :=
+Ltac canonicalize_all_map_hyps K V :=
   repeat match goal with
          | H: _ |- _ => progress canonicalize_map_hyp H
-         end.
+         end;
+  (* TODO we should call this whenever we rewrite with rew_map_specs,
+     calling it here is just convenient *)
+  rewrite_get_put K V.
 
 Ltac map_solver_should_destruct K V d :=
   let T := type of d in
@@ -2227,10 +2234,10 @@ Ltac map_solver K V :=
   destruct_products;
   intros;
   repeat autorewrite with rew_set_op_specs rew_map_specs;
-  canonicalize_all_map_hyps;
+  canonicalize_all_map_hyps K V;
   repeat match goal with
   | H: forall (x: ?E), _, y: ?E |- _ =>
-    (* TODO restrict E *)
+    first [ unify E K | unify E V ];
     match type of H with
     | DecidableEq E => fail 1
     | _ => let H' := fresh H y in
@@ -2240,7 +2247,102 @@ Ltac map_solver K V :=
     end
   end;
   repeat ((intuition solve [subst *; auto || congruence || (exfalso; eauto)]) ||
-          (destruct_one_map_match K V; invert_Some_eq_Some; canonicalize_all_map_hyps)).
+          (destruct_one_map_match K V; invert_Some_eq_Some; canonicalize_all_map_hyps K V)).
+
+(* ** ../bedrock2/compiler/src/util/MapSolverTest.v *)
+(* Require Import compiler.Decidable. *)
+(* Require Import compiler.util.Set. *)
+(* Require Import compiler.util.Map. *)
+
+Section Tests.
+
+  Context {var: Type}. (* variable name (key) *)
+  Context {dec_eq_var: DecidableEq var}.
+  Context {val: Type}. (* value *)
+  Context {dec_eq_val: DecidableEq val}.
+
+  Context {stateMap: MapFunctions var val}.
+  Notation state := (map var val).
+  Context {varset: SetFunctions var}.
+  Notation vars := (set var).
+
+  Ltac t := map_solver var val.
+
+  Lemma extends_refl: forall s, extends s s.
+  Proof. t. Qed.
+
+  Lemma only_differ_union_l: forall s1 s2 r1 r2,
+    only_differ s1 r1 s2 ->
+    only_differ s1 (union r1 r2) s2.
+  Proof. t. Qed.
+
+  Lemma only_differ_union_r: forall s1 s2 r1 r2,
+    only_differ s1 r2 s2 ->
+    only_differ s1 (union r1 r2) s2.
+  Proof. t. Qed.
+
+  Lemma only_differ_one: forall s x v,
+    only_differ s (singleton_set x) (put s x v).
+  Proof. t. Qed.
+
+  Lemma only_differ_refl: forall s1 r,
+    only_differ s1 r s1.
+  Proof. t. Qed.
+
+  Lemma only_differ_sym: forall s1 s2 r,
+    only_differ s1 r s2 ->
+    only_differ s2 r s1.
+  Proof. t. Qed.
+
+  Lemma only_differ_trans: forall s1 s2 s3 r,
+    only_differ s1 r s2 ->
+    only_differ s2 r s3 ->
+    only_differ s1 r s3.
+  Proof. t. Qed.
+
+  Lemma undef_on_shrink: forall st vs1 vs2,
+    undef_on st vs1 ->
+    subset vs2 vs1 ->
+    undef_on st vs2.
+  Proof. t. Qed.
+
+  Lemma only_differ_subset: forall s1 s2 r1 r2,
+    subset r1 r2 ->
+    only_differ s1 r1 s2 ->
+    only_differ s1 r2 s2.
+  Proof. t. Qed.
+
+  Lemma extends_if_only_differ_in_undef: forall s1 s2 s vs,
+    extends s1 s ->
+    undef_on s vs ->
+    only_differ s1 vs s2 ->
+    extends s2 s.
+  Proof. t. Qed.
+
+  Lemma extends_if_only_differ_is_undef: forall s1 s2 vs,
+    undef_on s1 vs ->
+    only_differ s1 vs s2 ->
+    extends s2 s1.
+  Proof. t. Qed.
+
+  Lemma extends_put_same: forall s1 s2 x v,
+    extends s2 s1 ->
+    extends (put s2 x v) (put s1 x v).
+  Proof. t. Qed.
+
+  Lemma only_differ_get_unchanged: forall s1 s2 x v d,
+    get s1 x = v ->
+    only_differ s1 d s2 ->
+    ~ x \in d ->
+    get s2 x = v.
+  Proof. t. Qed.
+
+  Lemma only_differ_put: forall s (d: vars) x v,
+    x \in d ->
+    only_differ s d (put s x v).
+  Proof. t. Qed.
+
+End Tests.
 
 
 (** ** BEGIN LEMMAS *)
@@ -2248,6 +2350,13 @@ Ltac map_solver K V :=
 Section Lemmas.
   Context {K V: Type}.
   Context {Map: MapFunctions K V}.
+  Local Instance Kset: SetFunctions K := map_domain_set.
+  Local Instance Vset: SetFunctions V := map_range_set.
+  Local Instance K_eq_dec: DecidableEq K := set_elem_eq_dec.
+  Local Instance V_eq_dec: DecidableEq V := set_elem_eq_dec.
+
+
+  (** *** Part 1: Lemmas which hold *)
 
   Lemma RegAlloc2_updateWith_alt1_if:
     forall (m : map K V) (ps1 : set V) (pi1 : set K) (g1 u1 : map K V)
@@ -2265,15 +2374,8 @@ Section Lemmas.
     Time map_solver K V.
   Qed.
 
-End Lemmas.
 
-
-(** ** BEGIN FALSE CONJECTURES *)
-
-Section FalseConjectures.
-
-  Context {K V: Type}.
-  Context {Map: MapFunctions K V}.
+  (** *** Part 2: False conjectures *)
 
   Lemma RegAlloc2_updateWith_alt1_while_with_uninterpreted_function:
     forall (m : map K V) (ps1 : set V) (pi1 : set K) (g1 : map K V) (ps2 : set V)
@@ -2336,4 +2438,4 @@ Section FalseConjectures.
     Time Fail solve [map_solver K V].
   Abort.
 
-End FalseConjectures.
+End Lemmas.

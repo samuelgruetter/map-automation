@@ -12,7 +12,8 @@ FILES="$SRC/../lib/fiat_crypto_tactics/Test.v
        $SRC/Decidable.v
        $SRC/util/Tactics.v
        $SRC/util/Set.v
-       $SRC/util/Map.v"
+       $SRC/util/Map.v
+       $SRC/util/MapSolverTest.v"
 
 for f in $FILES; do
     printf '\n(* ** %s *)\n' $f
