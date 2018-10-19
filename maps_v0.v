@@ -2266,3 +2266,74 @@ Section Lemmas.
   Qed.
 
 End Lemmas.
+
+
+(** ** BEGIN FALSE CONJECTURES *)
+
+Section FalseConjectures.
+
+  Context {K V: Type}.
+  Context {Map: MapFunctions K V}.
+
+  Lemma RegAlloc2_updateWith_alt1_while_with_uninterpreted_function:
+    forall (m : map K V) (ps1 : set V) (pi1 : set K) (g1 : map K V) (ps2 : set V)
+           (pi2 : set K) (g2 : map K V) (astmt: Type) (f : map K V -> astmt -> map K V)
+           (s1 s2 : astmt),
+      extends (f m s1) (update_map (remove_keys (remove_values m ps1) pi1) g1) ->
+      extends (f m s2) (update_map (remove_keys (remove_values m ps2) pi2) g2) ->
+      subset (range g1) ps1 ->
+      subset (range g2) ps2 ->
+      subset (domain g1) pi1 ->
+      subset (domain g2) pi2 ->
+      extends (intersect_map (f m s1) (f (f (f m s1) s2) s1))
+              (update_map (remove_keys (remove_values m (union ps1 ps2)) (union pi1 pi2)) g1).
+  Proof.
+    Time Fail solve [map_solver K V].
+  Abort.
+
+  Lemma RegAlloc2_conjecture1: forall m1 m2,
+      disjoint (domain (remove_values m1 (range m2))) (domain m2).
+  Proof.
+    Time Fail solve [map_solver K V].
+  Abort.
+
+  Lemma RegAlloc2_conjecture2: forall g1 p1 g2 p2 r,
+      subset (range g1) p1 ->
+      subset (range g2) p2 ->
+      extends (update_map (remove_values r p1) g1)
+              (update_map (remove_values r (union p1 p2)) (intersect_map g1 g2)).
+  Proof.
+    Time Fail solve [map_solver K V].
+  Abort.
+
+  Lemma RegAlloc2_conjecture3: forall g1 p1 g2 p2 r,
+      subset (range g1) p1 ->
+      subset (range g2) p2 ->
+      subset (range (intersect_map g1 g2)) (union p1 p2) ->
+      extends (update_map (remove_values r p1) g1)
+              (update_map (remove_values r (union p1 p2)) (intersect_map g1 g2)).
+  Proof.
+    Time Fail solve [map_solver K V].
+  Abort.
+
+  Lemma RegAlloc2_conjecture4: forall u1 p1 g1 u2 p2 g2 m,
+      extends u1 (update_map (remove_values m p1) g1) ->
+      extends u2 (update_map (remove_values m p2) g2) ->
+      extends (intersect_map u1 u2)
+              (update_map (remove_values m (union p1 p2)) (intersect_map g1 g2)).
+  Proof.
+    Time Fail solve [map_solver K V].
+  Abort.
+
+  Lemma RegAlloc2_conjecture5: forall u1 p1 g1 u2 p2 g2 m,
+      extends u1 (update_map (remove_values m p1) g1) ->
+      extends u2 (update_map (remove_values m p2) g2) ->
+      subset (range g1) p1 ->
+      subset (range g2) p2 ->
+      extends (intersect_map u1 u2)
+              (update_map (remove_values m (union p1 p2)) (intersect_map g1 g2)).
+  Proof.
+    Time Fail solve [map_solver K V].
+  Abort.
+
+End FalseConjectures.
