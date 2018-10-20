@@ -2358,6 +2358,273 @@ Section Lemmas.
 
   (** *** Part 1: Lemmas which hold *)
 
+  Lemma flattenExpr_correct_aux_lemma1:
+    forall (resVar : K) (initialH initialL : map K V) (fvngs1 : set K) (v0 : V),
+      extends initialL initialH ->
+      undef_on initialH fvngs1 -> get (put initialL resVar v0) resVar = Some v0.
+  Proof.
+    Time map_solver K V.
+  Qed.
+
+  Lemma flattenExpr_correct_aux_lemma2:
+    forall (x resVar : K) (initialH initialL : map K V) (res : V) (fvngs1 : set K),
+      extends initialL initialH ->
+      undef_on initialH fvngs1 ->
+      get initialH x = Some res -> get (put initialL resVar res) resVar = get initialH x.
+  Proof.
+    Time map_solver K V.
+  Qed.
+
+  Lemma flattenExpr_correct_aux_lemma3:
+    forall (initialH initialL : map K V) (v : K) (fvngs1 : set K) (v0 : K)
+           (fvn fvn0 mvs1 mvs0 : set K),
+      extends initialL initialH ->
+      undef_on initialH fvngs1 ->
+      subset fvn0 fvn ->
+      subset fvn fvngs1 ->
+      v0 \in mvs1 ->
+      v \in mvs0 ->
+      subset mvs1 (diff fvn fvn0) -> subset mvs0 (diff fvngs1 fvn) -> undef_on initialH fvngs1.
+  Proof.
+    Time map_solver K V.
+  Qed.
+
+  Lemma flattenExpr_correct_aux_lemma4:
+    forall (initialH initialL : map K V) (v v0 : K) (midL : map K V) (fvngs1 : set K)
+           (w : V) (fvn fvn0 mvs1 mvs0 : set K),
+      extends initialL initialH ->
+      undef_on initialH fvngs1 ->
+      subset fvn0 fvn ->
+      subset fvn fvngs1 ->
+      v0 \in mvs1 ->
+      v \in mvs0 ->
+      subset mvs1 (diff fvn fvn0) ->
+      subset mvs0 (diff fvngs1 fvn) ->
+      get midL v = Some w -> only_differ initialL mvs0 midL -> extends midL initialH.
+  Proof.
+    Time map_solver K V.
+  Qed.
+
+  Lemma flattenExpr_correct_aux_lemma5:
+    forall (initialH initialL : map K V) (v v0 : K) (midL : map K V) (fvngs1 : set K)
+           (w : V) (fvn fvn0 mvs1 mvs0 : set K),
+      extends initialL initialH ->
+      undef_on initialH fvngs1 ->
+      subset fvn0 fvn ->
+      subset fvn fvngs1 ->
+      v0 \in mvs1 ->
+      v \in mvs0 ->
+      subset mvs1 (diff fvn fvn0) ->
+      subset mvs0 (diff fvngs1 fvn) ->
+      get midL v = Some w -> only_differ initialL mvs0 midL -> undef_on initialH fvn.
+  Proof.
+    Time map_solver K V.
+  Qed.
+
+  Lemma flattenExpr_correct_aux_lemma6:
+    forall (initialH initialL : map K V) (v v0 : K) (midL : map K V) (fvngs1 : set K)
+           (w w0 : V) (fvn fvn0 mvs1 mvs0 : set K) (preFinalL : map K V),
+      extends initialL initialH ->
+      undef_on initialH fvngs1 ->
+      subset fvn0 fvn ->
+      subset fvn fvngs1 ->
+      v0 \in mvs1 ->
+      v \in mvs0 ->
+      subset mvs1 (diff fvn fvn0) ->
+      subset mvs0 (diff fvngs1 fvn) ->
+      get midL v = Some w ->
+      only_differ initialL mvs0 midL ->
+      get preFinalL v0 = Some w0 -> only_differ midL mvs1 preFinalL -> get preFinalL v = Some w.
+  Proof.
+    Time map_solver K V.
+  Qed.
+
+  Lemma flattenStmt_correct_aux_lemma1:
+    forall (lhs : K) (initialH initialL : map K V) (fvngs emv : set K)
+           (v : V) (v0 : K) (prefinalL : map K V) (fvngs' mvs : set K),
+      extends initialL initialH ->
+      undef_on initialH fvngs ->
+      disjoint emv fvngs ->
+      get prefinalL v0 = Some v ->
+      subset fvngs' fvngs ->
+      only_differ initialL mvs prefinalL ->
+      v0 \in mvs ->
+      subset mvs (diff fvngs fvngs') -> extends (put prefinalL lhs v) (put initialH lhs v).
+  Proof.
+    Time map_solver K V.
+  Qed.
+
+  Lemma flattenStmt_correct_aux_lemma2:
+    forall (initialH initialL : map K V) (fvngs emv : set K) (av : V)
+           (v v0 : K) (prefinalL : map K V) (fvn fvngs' mvs mvs0 : set K),
+      extends initialL initialH ->
+      undef_on initialH fvngs ->
+      disjoint emv fvngs ->
+      get prefinalL v = Some av ->
+      subset fvngs' fvn ->
+      subset fvn fvngs ->
+      only_differ initialL mvs prefinalL ->
+      v0 \in mvs0 ->
+      v \in mvs ->
+      subset mvs0 (diff fvn fvngs') ->
+      subset mvs (diff fvngs fvn) ->
+      extends prefinalL initialH.
+  Proof.
+    Time map_solver K V.
+  Qed.
+
+  Lemma flattenStmt_correct_aux_lemma3:
+    forall (initialH initialL : map K V) (fvngs emv : set K) (av : V)
+           (v v0 : K) (prefinalL : map K V) (fvn fvngs' mvs mvs0 : set K),
+      extends initialL initialH ->
+      undef_on initialH fvngs ->
+      disjoint emv fvngs ->
+      get prefinalL v = Some av ->
+      subset fvngs' fvn ->
+      subset fvn fvngs ->
+      only_differ initialL mvs prefinalL ->
+      v0 \in mvs0 ->
+      v \in mvs ->
+      subset mvs0 (diff fvn fvngs') -> subset mvs (diff fvngs fvn) -> undef_on initialH fvn.
+  Proof.
+    Time map_solver K V.
+  Qed.
+
+  Lemma flattenStmt_correct_aux_lemma4:
+    forall (initialH initialL : map K V) (fvngs : set K) (av vv : V) (v v0 : K)
+           (prefinalL finalL : map K V) (fvn fvngs' mvs mvs0 : set K),
+      extends initialL initialH ->
+      undef_on initialH fvngs ->
+      disjoint empty_set fvngs ->
+      get prefinalL v = Some av ->
+      get finalL v0 = Some vv ->
+      subset fvngs' fvn ->
+      subset fvn fvngs ->
+      only_differ initialL mvs prefinalL ->
+      only_differ prefinalL mvs0 finalL ->
+      v0 \in mvs0 ->
+      v \in mvs ->
+      subset mvs0 (diff fvn fvngs') -> subset mvs (diff fvngs fvn) -> get finalL v = Some av.
+  Proof.
+    Time map_solver K V.
+  Qed.
+
+  Lemma flattenStmt_correct_aux_lemma5:
+    forall (initialH initialL : map K V) (fvngs : set K) (av vv : V) (v v0 : K)
+           (prefinalL finalL : map K V) (fvn fvngs' mvs mvs0 : set K),
+      extends initialL initialH ->
+      undef_on initialH fvngs ->
+      disjoint empty_set fvngs ->
+      get prefinalL v = Some av ->
+      get finalL v0 = Some vv ->
+      subset fvngs' fvn ->
+      subset fvn fvngs ->
+      only_differ initialL mvs prefinalL ->
+      only_differ prefinalL mvs0 finalL ->
+      v0 \in mvs0 ->
+      v \in mvs ->
+      subset mvs0 (diff fvn fvngs') -> subset mvs (diff fvngs fvn) -> get finalL v = Some av.
+  Proof.
+    Time map_solver K V.
+  Qed.
+
+  Lemma flattenStmt_correct_aux_lemma6:
+    forall (initialH initialL : map K V) (fvngs emv : set K) (av vv : V)
+           (v v0 : K) (prefinalL finalL : map K V) (fvn fvngs' mvs0 mvs : set K),
+      extends initialL initialH ->
+      undef_on initialH fvngs ->
+      disjoint emv fvngs ->
+      get prefinalL v = Some av ->
+      get finalL v0 = Some vv ->
+      subset fvngs' fvn ->
+      subset fvn fvngs ->
+      only_differ prefinalL mvs0 finalL ->
+      only_differ initialL mvs prefinalL ->
+      v0 \in mvs0 ->
+      v \in mvs ->
+      subset mvs0 (diff fvn fvngs') -> subset mvs (diff fvngs fvn) -> extends finalL initialH.
+  Proof.
+    Time map_solver K V.
+  Qed.
+
+  Lemma flattenStmt_correct_aux_lemma7:
+    forall (initialH initial2L initialL : map K V) (fvngs emv : set K)
+           (cv Z0 : V) (v : K) (fvn mvcondL fvn0 fvngs' : set K),
+      extends initialL initialH ->
+      undef_on initialH fvngs ->
+      disjoint emv fvngs ->
+      cv <> Z0 ->
+      subset fvn fvngs ->
+      v \in mvcondL ->
+      subset mvcondL (diff fvngs fvn) ->
+      subset fvngs' fvn0 ->
+      subset fvn0 fvn ->
+      get initial2L v = Some cv ->
+      only_differ initialL mvcondL initial2L -> extends initial2L initialH.
+  Proof.
+    Time map_solver K V.
+  Qed.
+
+  Lemma flattenStmt_correct_aux_lemma8:
+    forall (initialH initial2L initialL : map K V) (fvngs emv : set K)
+           (cv Z0 : V) (v : K) (fvn mvcondL fvn0 fvngs' : set K),
+      extends initialL initialH ->
+      undef_on initialH fvngs ->
+      disjoint emv fvngs ->
+      cv <> Z0 ->
+      subset fvn fvngs ->
+      v \in mvcondL ->
+      subset mvcondL (diff fvngs fvn) ->
+      subset fvngs' fvn0 ->
+      subset fvn0 fvn ->
+      get initial2L v = Some cv ->
+      only_differ initialL mvcondL initial2L ->
+      undef_on initialH fvn.
+  Proof.
+    Time map_solver K V.
+  Qed.
+
+  Lemma flattenStmt_correct_aux_lemma9:
+    forall (v : K) (st2 middleL initialH initialL : map K V) (fvngs emv : set K)
+           (cv Z0 : V) (initial2L : map K V) (fvn mvsCond fvngs' mvsBody : set K),
+      extends initialL initialH ->
+      undef_on initialH fvngs ->
+      disjoint emv fvngs ->
+      cv <> Z0 ->
+      get initial2L v = Some cv ->
+      subset fvn fvngs ->
+      only_differ initialL mvsCond initial2L ->
+      v \in mvsCond ->
+      subset mvsCond (diff fvngs fvn) ->
+      subset fvngs' fvngs ->
+      subset fvngs' fvn ->
+      extends middleL st2 -> only_differ initial2L mvsBody middleL -> extends middleL st2.
+  Proof.
+    Time map_solver K V.
+  Qed.
+
+  Lemma flattenStmt_correct_aux_lemma10:
+    forall (v : K) (st2 middleL initialH initialL : map K V) (fvngs emv : set K)
+           (cv Z0 : V) (initial2L : map K V) (fvn mvsCond fvngs' mvsBody : set K),
+      extends initialL initialH ->
+      undef_on initialH fvngs ->
+      disjoint emv fvngs ->
+      cv <> Z0 ->
+      get initial2L v = Some cv ->
+      subset fvn fvngs ->
+      only_differ initialL mvsCond initial2L ->
+      v \in mvsCond ->
+      subset mvsCond (diff fvngs fvn) ->
+      subset fvngs' fvngs ->
+      subset fvngs' fvn ->
+      extends middleL st2 ->
+      only_differ initial2L mvsBody middleL ->
+      only_differ initialH emv st2 ->
+      undef_on st2 fvngs.
+  Proof.
+    Time map_solver K V.
+  Qed.
+
   Lemma RegAlloc2_updateWith_alt1_if:
     forall (m : map K V) (ps1 : set V) (pi1 : set K) (g1 u1 : map K V)
            (ps2 : set V) (pi2 : set K) (g2 u2 : map K V),
