@@ -2358,6 +2358,8 @@ Section Lemmas.
 
   (** *** Part 1: Lemmas which hold *)
 
+  Goal False. idtac "Part 1a: Small goals (originally took <5s each)". Abort.
+
   Lemma flattenExpr_correct_aux_lemma1:
     forall (resVar : K) (initialH initialL : map K V) (fvngs1 : set K) (v0 : V),
       extends initialL initialH ->
@@ -2438,6 +2440,45 @@ Section Lemmas.
   Proof.
     Time map_solver K V.
   Qed.
+
+  Lemma flattenStmt_correct_aux_lemma7:
+    forall (initialH initial2L initialL : map K V) (fvngs emv : set K)
+           (cv Z0 : V) (v : K) (fvn mvcondL fvn0 fvngs' : set K),
+      extends initialL initialH ->
+      undef_on initialH fvngs ->
+      disjoint emv fvngs ->
+      cv <> Z0 ->
+      subset fvn fvngs ->
+      v \in mvcondL ->
+      subset mvcondL (diff fvngs fvn) ->
+      subset fvngs' fvn0 ->
+      subset fvn0 fvn ->
+      get initial2L v = Some cv ->
+      only_differ initialL mvcondL initial2L -> extends initial2L initialH.
+  Proof.
+    Time map_solver K V.
+  Qed.
+
+  Lemma flattenStmt_correct_aux_lemma8:
+    forall (initialH initial2L initialL : map K V) (fvngs emv : set K)
+           (cv Z0 : V) (v : K) (fvn mvcondL fvn0 fvngs' : set K),
+      extends initialL initialH ->
+      undef_on initialH fvngs ->
+      disjoint emv fvngs ->
+      cv <> Z0 ->
+      subset fvn fvngs ->
+      v \in mvcondL ->
+      subset mvcondL (diff fvngs fvn) ->
+      subset fvngs' fvn0 ->
+      subset fvn0 fvn ->
+      get initial2L v = Some cv ->
+      only_differ initialL mvcondL initial2L ->
+      undef_on initialH fvn.
+  Proof.
+    Time map_solver K V.
+  Qed.
+
+  Goal False. idtac "Part 1b: Medium goals (originally took >5s each)". Abort.
 
   Lemma flattenStmt_correct_aux_lemma1:
     forall (lhs : K) (initialH initialL : map K V) (fvngs emv : set K)
@@ -2528,62 +2569,6 @@ Section Lemmas.
     Time map_solver K V.
   Qed.
 
-  Lemma flattenStmt_correct_aux_lemma6:
-    forall (initialH initialL : map K V) (fvngs emv : set K) (av vv : V)
-           (v v0 : K) (prefinalL finalL : map K V) (fvn fvngs' mvs0 mvs : set K),
-      extends initialL initialH ->
-      undef_on initialH fvngs ->
-      disjoint emv fvngs ->
-      get prefinalL v = Some av ->
-      get finalL v0 = Some vv ->
-      subset fvngs' fvn ->
-      subset fvn fvngs ->
-      only_differ prefinalL mvs0 finalL ->
-      only_differ initialL mvs prefinalL ->
-      v0 \in mvs0 ->
-      v \in mvs ->
-      subset mvs0 (diff fvn fvngs') -> subset mvs (diff fvngs fvn) -> extends finalL initialH.
-  Proof.
-    Time map_solver K V.
-  Qed.
-
-  Lemma flattenStmt_correct_aux_lemma7:
-    forall (initialH initial2L initialL : map K V) (fvngs emv : set K)
-           (cv Z0 : V) (v : K) (fvn mvcondL fvn0 fvngs' : set K),
-      extends initialL initialH ->
-      undef_on initialH fvngs ->
-      disjoint emv fvngs ->
-      cv <> Z0 ->
-      subset fvn fvngs ->
-      v \in mvcondL ->
-      subset mvcondL (diff fvngs fvn) ->
-      subset fvngs' fvn0 ->
-      subset fvn0 fvn ->
-      get initial2L v = Some cv ->
-      only_differ initialL mvcondL initial2L -> extends initial2L initialH.
-  Proof.
-    Time map_solver K V.
-  Qed.
-
-  Lemma flattenStmt_correct_aux_lemma8:
-    forall (initialH initial2L initialL : map K V) (fvngs emv : set K)
-           (cv Z0 : V) (v : K) (fvn mvcondL fvn0 fvngs' : set K),
-      extends initialL initialH ->
-      undef_on initialH fvngs ->
-      disjoint emv fvngs ->
-      cv <> Z0 ->
-      subset fvn fvngs ->
-      v \in mvcondL ->
-      subset mvcondL (diff fvngs fvn) ->
-      subset fvngs' fvn0 ->
-      subset fvn0 fvn ->
-      get initial2L v = Some cv ->
-      only_differ initialL mvcondL initial2L ->
-      undef_on initialH fvn.
-  Proof.
-    Time map_solver K V.
-  Qed.
-
   Lemma flattenStmt_correct_aux_lemma9:
     forall (v : K) (st2 middleL initialH initialL : map K V) (fvngs emv : set K)
            (cv Z0 : V) (initial2L : map K V) (fvn mvsCond fvngs' mvsBody : set K),
@@ -2625,6 +2610,27 @@ Section Lemmas.
     Time map_solver K V.
   Qed.
 
+  Goal False. idtac "Part 1c: Large goals (originally took >50s each)". Abort.
+
+  Lemma flattenStmt_correct_aux_lemma6:
+    forall (initialH initialL : map K V) (fvngs emv : set K) (av vv : V)
+           (v v0 : K) (prefinalL finalL : map K V) (fvn fvngs' mvs0 mvs : set K),
+      extends initialL initialH ->
+      undef_on initialH fvngs ->
+      disjoint emv fvngs ->
+      get prefinalL v = Some av ->
+      get finalL v0 = Some vv ->
+      subset fvngs' fvn ->
+      subset fvn fvngs ->
+      only_differ prefinalL mvs0 finalL ->
+      only_differ initialL mvs prefinalL ->
+      v0 \in mvs0 ->
+      v \in mvs ->
+      subset mvs0 (diff fvn fvngs') -> subset mvs (diff fvngs fvn) -> extends finalL initialH.
+  Proof.
+    Time map_solver K V.
+  Qed.
+
   Lemma RegAlloc2_updateWith_alt1_if:
     forall (m : map K V) (ps1 : set V) (pi1 : set K) (g1 u1 : map K V)
            (ps2 : set V) (pi2 : set K) (g2 u2 : map K V),
@@ -2644,6 +2650,59 @@ Section Lemmas.
 
   (** *** Part 2: False conjectures *)
 
+  Goal False. idtac "Part 2a: Small false goals (originally took <5s each)". Abort.
+
+  Lemma RegAlloc2_conjecture1: forall m1 m2,
+      disjoint (domain (remove_values m1 (range m2))) (domain m2).
+  Proof.
+    Time map_solver K V.
+  Abort.
+
+  Lemma RegAlloc2_conjecture2: forall g1 p1 g2 p2 r,
+      subset (range g1) p1 ->
+      subset (range g2) p2 ->
+      extends (update_map (remove_values r p1) g1)
+              (update_map (remove_values r (union p1 p2)) (intersect_map g1 g2)).
+  Proof.
+    Time map_solver K V.
+  Abort.
+
+  Lemma RegAlloc2_conjecture3: forall g1 p1 g2 p2 r,
+      subset (range g1) p1 ->
+      subset (range g2) p2 ->
+      subset (range (intersect_map g1 g2)) (union p1 p2) ->
+      extends (update_map (remove_values r p1) g1)
+              (update_map (remove_values r (union p1 p2)) (intersect_map g1 g2)).
+  Proof.
+    Time map_solver K V.
+  Abort.
+
+
+  Goal False. idtac "Part 2b: Medium false goals (originally took >5s each)". Abort.
+
+  Lemma RegAlloc2_conjecture4: forall u1 p1 g1 u2 p2 g2 m,
+      extends u1 (update_map (remove_values m p1) g1) ->
+      extends u2 (update_map (remove_values m p2) g2) ->
+      extends (intersect_map u1 u2)
+              (update_map (remove_values m (union p1 p2)) (intersect_map g1 g2)).
+  Proof.
+    Time map_solver K V.
+  Abort.
+
+  Lemma RegAlloc2_conjecture5: forall u1 p1 g1 u2 p2 g2 m,
+      extends u1 (update_map (remove_values m p1) g1) ->
+      extends u2 (update_map (remove_values m p2) g2) ->
+      subset (range g1) p1 ->
+      subset (range g2) p2 ->
+      extends (intersect_map u1 u2)
+              (update_map (remove_values m (union p1 p2)) (intersect_map g1 g2)).
+  Proof.
+    Time map_solver K V.
+  Abort.
+
+
+  Goal False. idtac "Part 2c: Large false goals (originally took >50s each)". Abort.
+
   Lemma RegAlloc2_updateWith_alt1_while_with_uninterpreted_function:
     forall (m : map K V) (ps1 : set V) (pi1 : set K) (g1 : map K V) (ps2 : set V)
            (pi2 : set K) (g2 : map K V) (astmt: Type) (f : map K V -> astmt -> map K V)
@@ -2657,52 +2716,7 @@ Section Lemmas.
       extends (intersect_map (f m s1) (f (f (f m s1) s2) s1))
               (update_map (remove_keys (remove_values m (union ps1 ps2)) (union pi1 pi2)) g1).
   Proof.
-    Time Fail solve [map_solver K V].
-  Abort.
-
-  Lemma RegAlloc2_conjecture1: forall m1 m2,
-      disjoint (domain (remove_values m1 (range m2))) (domain m2).
-  Proof.
-    Time Fail solve [map_solver K V].
-  Abort.
-
-  Lemma RegAlloc2_conjecture2: forall g1 p1 g2 p2 r,
-      subset (range g1) p1 ->
-      subset (range g2) p2 ->
-      extends (update_map (remove_values r p1) g1)
-              (update_map (remove_values r (union p1 p2)) (intersect_map g1 g2)).
-  Proof.
-    Time Fail solve [map_solver K V].
-  Abort.
-
-  Lemma RegAlloc2_conjecture3: forall g1 p1 g2 p2 r,
-      subset (range g1) p1 ->
-      subset (range g2) p2 ->
-      subset (range (intersect_map g1 g2)) (union p1 p2) ->
-      extends (update_map (remove_values r p1) g1)
-              (update_map (remove_values r (union p1 p2)) (intersect_map g1 g2)).
-  Proof.
-    Time Fail solve [map_solver K V].
-  Abort.
-
-  Lemma RegAlloc2_conjecture4: forall u1 p1 g1 u2 p2 g2 m,
-      extends u1 (update_map (remove_values m p1) g1) ->
-      extends u2 (update_map (remove_values m p2) g2) ->
-      extends (intersect_map u1 u2)
-              (update_map (remove_values m (union p1 p2)) (intersect_map g1 g2)).
-  Proof.
-    Time Fail solve [map_solver K V].
-  Abort.
-
-  Lemma RegAlloc2_conjecture5: forall u1 p1 g1 u2 p2 g2 m,
-      extends u1 (update_map (remove_values m p1) g1) ->
-      extends u2 (update_map (remove_values m p2) g2) ->
-      subset (range g1) p1 ->
-      subset (range g2) p2 ->
-      extends (intersect_map u1 u2)
-              (update_map (remove_values m (union p1 p2)) (intersect_map g1 g2)).
-  Proof.
-    Time Fail solve [map_solver K V].
+    Time map_solver K V.
   Abort.
 
 End Lemmas.
