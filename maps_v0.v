@@ -1,3 +1,4 @@
+
 (* ** ../bedrock2/compiler/src/../lib/fiat_crypto_tactics/Test.v *)
 (** Test if a tactic succeeds, but always roll-back the results *)
 Tactic Notation "test" tactic3(tac) :=
@@ -17,7 +18,7 @@ We can't use the full LibTactics.v because it contains annoying definitions:
 1) Tactic Notation "subst" "*" :=
      subst; auto_star.
 
-   instead of
+   instead of 
 
    Program.Tactics.subst_no_fail
 
@@ -130,7 +131,6 @@ Inductive ltac_No_arg : Set :=
 Inductive ltac_Wild : Set :=
   | ltac_wild : ltac_Wild.
 
-Declare Scope ltac_scope.
 Notation "'__'" := ltac_wild : ltac_scope.
 
 (** [ltac_wilds] is another constant that is typically used to
@@ -1890,7 +1890,8 @@ Qed.
 Ltac invert_Some_eq_Some :=
   repeat match goal with
          | H: Some ?x1 = Some ?x2 |- _ => apply invert_Some_eq_Some in H; subst x2
-         | H: forall _, Some ?y = Some _ -> Some _ = Some _ |- _ => apply forall_Some_eq_Some in H; subst y
+         | H: forall _, Some ?y = Some _ -> Some _ = Some _ |- _ =>
+              apply forall_Some_eq_Some in H; subst y
          end.
 
 (* ** ../bedrock2/compiler/src/util/Set.v *)
@@ -2236,8 +2237,8 @@ Ltac rewrite_get_put K V :=
 
 Ltac canonicalize_map_hyp H :=
   rew_set_op_map_specs H;
-  try (exists_to_forall H);
-  try (specialize (H eq_refl)).
+  try exists_to_forall H;
+  try specialize (H eq_refl).
 
 Ltac canonicalize_all_map_hyps K V :=
   repeat match goal with
@@ -2304,17 +2305,18 @@ Ltac map_solver K V :=
     | DecidableEq E => fail 1
     | _ => let H' := fresh H y in
            pose proof (H y) as H';
-           (canonicalize_map_hyp H'; ensure_new H')
+           canonicalize_map_hyp H';
+           ensure_new H'
     end
-end;
-let solver := congruence || auto || (exfalso; eauto) in
-let fallback := (destruct_one_map_match K V; invert_Some_eq_Some; canonicalize_all_map_hyps K V) in
-repeat (propositional;
-        propositional_ors;
-        try solve [ solver ];
-        try fallback).
-
-Set Printing Width 1000.
+  end;
+  let solver := congruence || auto || (exfalso; eauto) in
+  let fallback := (destruct_one_map_match K V;
+                   invert_Some_eq_Some;
+                   canonicalize_all_map_hyps K V) in
+  repeat (propositional;
+          propositional_ors;
+          try solve [ solver ];
+          try fallback).
 
 (* ** ../bedrock2/compiler/src/util/MapSolverTest.v *)
 (* Require Import compiler.Decidable. *)

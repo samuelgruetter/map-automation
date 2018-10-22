@@ -26,4 +26,4 @@ cat saved.v >> $F
 
 rm saved.v
 
-coqc $F
+time coqc $F
