@@ -1,4 +1,3 @@
-
 (* ** ../bedrock2/compiler/src/../lib/fiat_crypto_tactics/Test.v *)
 (** Test if a tactic succeeds, but always roll-back the results *)
 Tactic Notation "test" tactic3(tac) :=
@@ -18,7 +17,7 @@ We can't use the full LibTactics.v because it contains annoying definitions:
 1) Tactic Notation "subst" "*" :=
      subst; auto_star.
 
-   instead of 
+   instead of
 
    Program.Tactics.subst_no_fail
 
@@ -2650,6 +2649,17 @@ Section Lemmas.
   Proof.
     Time map_solver K V.
   Qed.
+
+  Lemma flattenStmt_correct_aux_lemma_rewrite_get_key:
+    forall (lhs : K) (initialH initialL : map K V) (fvngs' emv : set K),
+      extends initialL initialH ->
+      disjoint emv fvngs' ->
+      undef_on initialH fvngs' ->
+      extends initialL (remove_key initialH lhs).
+  Proof.
+    Time map_solver K V.
+  Qed.
+
 
   Goal False. idtac "Part 1b: Medium goals (originally took >5s each)". Abort.
 
