@@ -1670,6 +1670,10 @@ Global Instance dec_ge_Z : DecidableRel BinInt.Z.ge := ZArith_dec.Z_ge_dec.
 
 Global Instance dec_eq_N : DecidableEq N := N.eq_dec.
 
+Global Instance dec_Empty_set: DecidableEq Empty_set.
+  intro x. destruct x.
+Defined.
+
 Global Instance decidable_eq_option {A} `{DecidableEq A}: DecidableEq (option A).
   intros. unfold Decidable. destruct x; destruct y.
   - destruct (DecidableEq0 a a0).
@@ -1963,6 +1967,7 @@ Ltac set_solver_generic E :=
   intuition (subst *; auto).
 
 (* ** ../bedrock2/compiler/src/util/Map.v *)
+(* Require Import lib.fiat_crypto_tactics.Not. *)
 (* Require Import compiler.util.Set. *)
 (* Require Import compiler.util.Tactics. *)
 (* Require Import compiler.Decidable. *)
@@ -2095,6 +2100,9 @@ Section MapDefinitions.
 
   Definition extends(s1 s2: map K V) := forall x w, get s2 x = Some w -> get s1 x = Some w.
 
+  Definition bw_extends(s1 s2: map K V) := forall k v,
+      reverse_get s2 v = Some k -> reverse_get s1 v = Some k.
+
   Definition only_differ(s1: map K V)(vs: set K)(s2: map K V) :=
     forall x, x \in vs \/ get s1 x = get s2 x.
 
@@ -2184,16 +2192,15 @@ Section MapDefinitions.
 
 End MapDefinitions.
 
-Hint Unfold extends only_differ agree_on undef_on : unf_map_defs.
+Hint Unfold extends bw_extends only_differ agree_on undef_on : unf_map_defs.
 
 Ltac rew_set_op_map_specs H :=
   let t lemma := rewrite lemma in H in
       repeat match type of H with
              (* rew_map_specs *)
              | context[get ?m] =>
-               is_var m
-               || lazymatch m with
-                 | remove_key _ _ => t get_remove_key
+                 lazymatch m with
+                 | remove_key _ _ => t (get_remove_key (keq := _))
                  | put _ _ => t get_put
                  | restrict _ _ => t get_restrict
                  | intersect_map _ _ => t get_intersect_map
@@ -2225,9 +2232,10 @@ Hint Rewrite
      @get_update_map
      @domain_spec
      @range_spec
-     (* TODO operations without a rewrite lemma here:
-     - reverse_get
-     *)
+     (* Note: reverse_get doesn't have a one-lemma spec, so map_solver will not
+        automatically figure out that it should destruct this option *)
+     (*@reverse_get_Some <-- will not replace reverse_get *)
+     (*@reverse_get_None <-- not usable for rewrite *)
   : rew_map_specs.
 
 
@@ -2240,13 +2248,12 @@ Ltac canonicalize_map_hyp H :=
   try exists_to_forall H;
   try specialize (H eq_refl).
 
-Ltac canonicalize_all_map_hyps K V :=
+Ltac canonicalize_all K V :=
   repeat match goal with
          | H: _ |- _ => progress canonicalize_map_hyp H
          end;
-  (* TODO we should call this whenever we rewrite with rew_map_specs,
-     calling it here is just convenient *)
-  rewrite_get_put K V.
+  invert_Some_eq_Some;
+  repeat (autorewrite with rew_set_op_specs rew_map_specs || rewrite_get_put K V).
 
 Ltac map_solver_should_destruct K V d :=
   let T := type of d in
@@ -2267,14 +2274,21 @@ Ltac destruct_one_map_match K V :=
 
 Ltac propositional :=
   repeat match goal with
-         | |- forall _, _ => intros
-         | [ H: _ /\ _ |- _ ] => destruct H
-         | [ H: _ <-> _ |- _ ] => destruct H
+         | |- forall _, _ => progress intros until 0
+         | |- _ -> _ => let H := fresh "Hyp" in intro H
+         | [ H: _ /\ _ |- _ ] =>
+           let H1 := fresh H "_l" in
+           let H2 := fresh H "_r" in
+           destruct H as [H1 H2]
+         | [ H: _ <-> _ |- _ ] =>
+           let H1 := fresh H "_fwd" in
+           let H2 := fresh H "_bwd" in
+           destruct H as [H1 H2]
          | [ H: False |- _ ] => solve [ destruct H ]
          | [ H: True |- _ ] => clear H
          | [ H: exists (varname : _), _ |- _ ] =>
            let newvar := fresh varname in
-           destruct H as [newvar ?]
+           destruct H as [newvar H]
          | [ H: ?P |- ?P ] => exact H
          | |- _ /\ _ => split
          | [ H: ?P -> _, H': ?P |- _ ] =>
@@ -2286,21 +2300,33 @@ Ltac propositional :=
 
 Ltac propositional_ors :=
   repeat match goal with
-         | [ H: _ \/ _ |- _ ] => destruct H
+         | [ H: _ \/ _ |- _ ] => destruct H as [H | H]
          | [ |- _ \/ _ ] => (left + right); congruence
          end.
+
+Ltac ensure_no_body H := not (clearbody H).
+
+Ltac pick_one_existential :=
+  multimatch goal with
+  | x: ?T |- exists (_: ?T), _ => exists x
+  end.
 
 Ltac map_solver K V :=
   assert_is_type K;
   assert_is_type V;
   repeat autounfold with unf_map_defs unf_set_defs in *;
   destruct_products;
-  intros;
-  repeat autorewrite with rew_set_op_specs rew_map_specs;
-  canonicalize_all_map_hyps K V;
+  repeat match goal with
+         | |- forall _, _ => progress intros until 0
+         | |- _ -> _ => let H := fresh "Hyp" in intro H
+         end;
+  canonicalize_all K V;
+  let RGN := fresh "RGN" in pose proof (@reverse_get_None K V _) as RGN;
+  let RGS := fresh "RGS" in pose proof (@reverse_get_Some K V _) as RGS;
   repeat match goal with
   | H: forall (x: ?E), _, y: ?E |- _ =>
     first [ unify E K | unify E V ];
+    ensure_no_body H;
     match type of H with
     | DecidableEq E => fail 1
     | _ => let H' := fresh H y in
@@ -2308,11 +2334,30 @@ Ltac map_solver K V :=
            canonicalize_map_hyp H';
            ensure_new H'
     end
+  | H: forall (x: _), _, y: ?E |- _ =>
+    let T := type of E in unify T Prop;
+    ensure_no_body H;
+    let H' := fresh H y in
+    pose proof H as H';
+    specialize H' with (1 := y); (* might instantiate a few universally quantified vars *)
+    canonicalize_map_hyp H';
+    ensure_new H'
+  | H: ?P -> _ |- _ =>
+    let T := type of P in unify T Prop;
+    let F := fresh in
+    assert P as F by eauto;
+    let H' := fresh H "_eauto" in
+    pose proof (H F) as H';
+    clear F;
+    canonicalize_map_hyp H';
+    ensure_new H'
   end;
-  let solver := congruence || auto || (exfalso; eauto) in
-  let fallback := (destruct_one_map_match K V;
-                   invert_Some_eq_Some;
-                   canonicalize_all_map_hyps K V) in
+  let solver := congruence || auto || (exfalso; eauto) ||
+                match goal with
+                | H: ~ _ |- False => solve [apply H; intuition (auto || congruence || eauto)]
+                end in
+  let fallback := (destruct_one_map_match K V || pick_one_existential);
+                  canonicalize_all K V in
   repeat (propositional;
           propositional_ors;
           try solve [ solver ];
@@ -2338,6 +2383,32 @@ Section Tests.
   Ltac t := map_solver var val.
 
   Lemma extends_refl: forall s, extends s s.
+  Proof. t. Qed.
+
+  Lemma extends_trans: forall s1 s2 s3,
+      extends s1 s2 ->
+      extends s2 s3 ->
+      extends s1 s3.
+  Proof. t. Qed.
+
+  Lemma extends_intersect_map_l: forall r1 r2,
+      extends r1 (intersect_map r1 r2).
+  Proof. t. Qed.
+
+  Lemma extends_intersect_map_r:
+    forall r1 r2, extends r2 (intersect_map r1 r2).
+  Proof. t. Qed.
+
+  Lemma extends_intersect_map_lr: forall m11 m12 m21 m22,
+      extends m11 m21 ->
+      extends m12 m22 ->
+      extends (intersect_map m11 m12) (intersect_map m21 m22).
+  Proof. t. Qed.
+
+  Lemma intersect_map_extends: forall m1 m2 m,
+      extends m1 m ->
+      extends m2 m ->
+      extends (intersect_map m1 m2) m.
   Proof. t. Qed.
 
   Lemma only_differ_union_l: forall s1 s2 r1 r2,
@@ -2398,6 +2469,39 @@ Section Tests.
     extends s2 s1 ->
     extends (put s2 x v) (put s1 x v).
   Proof. t. Qed.
+
+  Lemma reverse_get_put_diff: forall m v1 v2 k,
+      v1 <> v2 ->
+      reverse_get (put m k v1) v2 = reverse_get m v2.
+  Proof.
+    (* might not hold for an efficient implementation which restructures the map on "put" *)
+  Abort.
+
+  Lemma reverse_get_put: forall m v1 v2 k1,
+      let q := reverse_get (put m k1 v1) v2 in
+      ((exists k2, reverse_get m v2 = Some k2) /\
+       ((exists k2, q = Some k2) \/ (q = Some k1 /\ v1 = v2))) \/
+      (reverse_get m v1 = None /\ (q = if (dec (v1 = v2)) then Some k1 else None)).
+  Proof.
+    (* might hold, but who wants to use that? *)
+  Abort.
+
+  Lemma bw_extends_put_same: forall m1 m2 k v,
+      bw_extends m1 m2 ->
+      bw_extends (put (remove_by_value m1 v) k v) (put (remove_by_value m2 v) k v).
+  Proof.
+    unfold bw_extends.
+    intros.
+    apply reverse_get_Some in H0.
+    destruct (dec (k = k0)).
+    - subst k0.
+      rewrite get_put_same in H0. inversion H0. subst v0.
+      admit.
+    - rewrite get_put_diff in H0 by assumption.
+      rewrite get_remove_by_value in H0.
+      destruct (dec (get m2 k0 = Some v)); [discriminate|].
+      assert (v <> v0) by congruence.
+  Abort.
 
   Lemma only_differ_get_unchanged: forall s1 s2 x v d,
     get s1 x = v ->
