@@ -2362,6 +2362,7 @@ Ltac map_solver K V :=
           try solve [ solver ];
           try fallback).
 
+
 (* ** ../bedrock2/compiler/src/util/MapSolverTest.v *)
 (* Require Import compiler.Decidable. *)
 (* Require Import compiler.util.Set. *)
@@ -2516,6 +2517,8 @@ Section Tests.
 
 End Tests.
 
+
+Set Ltac Profiling.
 
 (** ** BEGIN LEMMAS *)
 
@@ -2901,3 +2904,5 @@ Section Lemmas.
   Abort.
 
 End Lemmas.
+
+Show Ltac Profile.
