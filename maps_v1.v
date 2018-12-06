@@ -1961,13 +1961,13 @@ Class MapFunctions(K V: Type) := mkMap {
   intersect_map_spec: forall k v m1 m2,
       get (intersect_map m1 m2) k = Some v <-> get m1 k = Some v /\ get m2 k = Some v;
 
-  update_map: map -> map -> map;
-  get_update_map_l: forall m1 m2 k,
+  put_map: map -> map -> map;
+  get_put_map_l: forall m1 m2 k,
       get m2 k = None ->
-      get (update_map m1 m2) k = get m1 k;
-  get_update_map_r: forall m1 m2 k v,
+      get (put_map m1 m2) k = get m1 k;
+  get_put_map_r: forall m1 m2 k v,
       get m2 k = Some v ->
-      get (update_map m1 m2) k = Some v;
+      get (put_map m1 m2) k = Some v;
 
 }.
 
@@ -1981,8 +1981,8 @@ Hint Resolve
   get_put_same
   get_put_diff
   intersect_map_spec
-  get_update_map_l
-  get_update_map_r
+  get_put_map_l
+  get_put_map_r
 : map_spec_hints_separate.
 
 
@@ -2054,8 +2054,8 @@ Section MapDefinitions.
       firstorder congruence.
   Qed.
 
-  Lemma get_update_map: forall m1 m2 k,
-      get (update_map m1 m2) k =
+  Lemma get_put_map: forall m1 m2 k,
+      get (put_map m1 m2) k =
       match get m2 k with
       | Some v => Some v
       | None => get m1 k
@@ -2074,7 +2074,7 @@ Ltac one_rew_map_specs e rewriter :=
     | remove_key _ _ => rewriter (get_remove_key (keq := _))
     | put _ _ => rewriter (get_put (keq := _))
     | intersect_map _ _ => rewriter (get_intersect_map (veq := _))
-    | update_map _ _ => rewriter get_update_map
+    | put_map _ _ => rewriter get_put_map
     end
   end.
 
@@ -2099,7 +2099,7 @@ Ltac rew_map_specs_in H :=
                  | remove_key _ _ => t (get_remove_key (keq := _))
                  | put _ _ => t (get_put (keq := _))
                  | intersect_map _ _ => t (get_intersect_map (veq := _))
-                 | update_map _ _ => t get_update_map
+                 | put_map _ _ => t get_put_map
                  end
              end.*)
 
@@ -2109,7 +2109,7 @@ Hint Rewrite
      @get_remove_key
      @get_put
      @get_intersect_map
-     @get_update_map
+     @get_put_map
   : rew_map_specs.
 
 (* TODO remove *)
