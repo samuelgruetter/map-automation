@@ -1897,74 +1897,6 @@ Ltac invert_Some_eq_Some :=
               apply forall_Some_eq_Some in H; subst y
          end.
 
-(* ** ../bedrock2/compiler/src/util/Set.v *)
-(* Require Import compiler.util.Tactics. *)
-(* Require Import compiler.Decidable. *)
-Require Import Coq.Program.Tactics.
-
-
-Class SetFunctions(E: Type) := mkSet {
-  set: Type;
-
-  contains: set -> E -> Prop;
-  contains_dec: forall (x: E) (A: set), Decidable (contains A x);
-
-  empty_set: set;
-  singleton_set: E -> set;
-
-  union: set -> set -> set;
-  intersect: set -> set -> set;
-  diff: set -> set -> set;
-  pick_or_else: set -> E -> (E * set);
-
-  set_elem_eq_dec: DecidableEq E;
-
-  empty_set_spec: forall (x: E), contains empty_set x <-> False;
-  singleton_set_spec: forall (x y: E), contains (singleton_set y) x <-> x = y;
-  union_spec: forall (x: E) (A B: set), contains (union A B) x <-> contains A x \/ contains B x;
-  intersect_spec: forall (x: E) (A B: set), contains (intersect A B) x <-> contains A x /\ contains B x;
-  diff_spec: forall (x: E) (A B: set), contains (diff A B) x <-> contains A x /\ ~ contains B x;
-  pick_or_else_spec: forall (A: set) (default: E),
-      A = empty_set /\ pick_or_else A default = (default, empty_set) \/
-      exists (a: E), contains A a /\ pick_or_else A default = (a, diff A (singleton_set a))
-}.
-
-Arguments set E {_}.
-
-Existing Instance contains_dec.
-
-Hint Rewrite
-  @empty_set_spec
-  @singleton_set_spec
-  @union_spec
-  @intersect_spec
-  @diff_spec
-: rew_set_op_specs.
-
-Notation "x '\in' s" := (contains s x) (at level 70, no associativity).
-
-Section SetDefinitions.
-  Context {E: Type}.
-  Context {setInst: SetFunctions E}.
-
-  Definition add(s: set E)(e: E) := union (singleton_set e) s.
-  Definition remove(s: set E)(e: E) := diff s (singleton_set e).
-  Definition subset(s1 s2: set E) := forall x, x \in s1 -> x \in s2.
-  Definition disjoint(s1 s2: set E) := forall x, (~ x \in s1) \/ (~ x \in s2).
-  Definition of_list l := List.fold_right union empty_set (List.map singleton_set l).
-
-End SetDefinitions.
-
-Hint Unfold add subset disjoint : unf_set_defs.
-
-Ltac set_solver_generic E :=
-  repeat autounfold with unf_set_defs in *;
-  destruct_products;
-  intros;
-  specialize_with E;
-  autorewrite with rew_set_op_specs in *;
-  intuition (subst *; auto).
-
 (* ** ../bedrock2/compiler/src/util/Map.v *)
 (* Require Import lib.fiat_crypto_tactics.Not. *)
 (* Require Import compiler.util.Set. *)
@@ -1973,9 +1905,6 @@ Ltac set_solver_generic E :=
 
 Class MapFunctions(K V: Type) := mkMap {
   map: Type;
-
-  map_domain_set: SetFunctions K;
-  map_range_set: SetFunctions V;
 
   (* fundamental operation, all others are axiomatized in terms of this one *)
   get: map -> K -> option V;
@@ -1991,16 +1920,6 @@ Class MapFunctions(K V: Type) := mkMap {
   get_put_same: forall (m: map) (k: K) (v: V), get (put m k v) k = Some v;
   get_put_diff: forall (m: map) (k1 k2: K) (v: V), k1 <> k2 -> get (put m k1 v) k2 = get m k2;
 
-  restrict: map -> set K -> map;
-  get_restrict_in: forall m k ks, k \in ks -> get (restrict m ks) k = get m k;
-  get_restrict_notin: forall m k ks, ~ k \in ks -> get (restrict m ks) k = None;
-
-  domain: map -> set K;
-  domain_spec: forall m k, k \in (domain m) <-> exists v, get m k = Some v;
-
-  range: map -> set V;
-  range_spec: forall m v, v \in (range m) <-> exists k, get m k = Some v;
-
   reverse_get: map -> V -> option K;
   reverse_get_Some: forall m k v, reverse_get m v = Some k -> get m k = Some v;
   reverse_get_None: forall m v, reverse_get m v = None -> forall k, get m k <> Some v;
@@ -2009,37 +1928,11 @@ Class MapFunctions(K V: Type) := mkMap {
   intersect_map_spec: forall k v m1 m2,
       get (intersect_map m1 m2) k = Some v <-> get m1 k = Some v /\ get m2 k = Some v;
 
-  remove_keys: map -> set K -> map;
-  remove_keys_never_there: forall m k ks,
-      get m k = None ->
-      get (remove_keys m ks) k = None;
-  remove_keys_removed: forall m k v ks,
-      get m k = Some v ->
-      k \in ks ->
-      get (remove_keys m ks) k = None;
-  remove_keys_not_removed: forall m k v ks,
-      get m k = Some v ->
-      ~ k \in ks ->
-      get (remove_keys m ks) k = Some v;
-
   remove_by_value: map -> V -> map;
   remove_by_value_same: forall k v m,
       get m k = Some v -> get (remove_by_value m v) k = None;
   remove_by_value_diff: forall k v m,
       get m k <> Some v -> get (remove_by_value m v) k = get m k;
-
-  remove_values: map -> set V -> map;
-  remove_values_never_there: forall m k vs,
-      get m k = None ->
-      get (remove_values m vs) k = None;
-  remove_values_removed: forall m k v vs,
-      get m k = Some v ->
-      v \in vs ->
-      get (remove_values m vs) k = None;
-  remove_values_not_removed: forall m k v vs,
-      get m k = Some v ->
-      ~ v \in vs ->
-      get (remove_values m vs) k = Some v;
 
   update_map: map -> map -> map;
   get_update_map_l: forall m1 m2 k,
@@ -2060,21 +1953,7 @@ Hint Resolve
   get_remove_diff
   get_put_same
   get_put_diff
-  get_restrict_in
-  get_restrict_notin
-  domain_spec
-  range_spec
-  reverse_get_Some
-  reverse_get_None
   intersect_map_spec
-  remove_keys_never_there
-  remove_keys_removed
-  remove_keys_not_removed
-  remove_by_value_same
-  remove_by_value_diff
-  remove_values_never_there
-  remove_values_removed
-  remove_values_not_removed
   get_update_map_l
   get_update_map_r
 : map_spec_hints_separate.
@@ -2085,30 +1964,22 @@ Section MapDefinitions.
   Context {K V: Type}.
   Context {KVmap: MapFunctions K V}.
 
-  (* Note: not reusing set_elem_eq_dec, map_domain_set and map_range_set here,
-     because we want the client of these lemmas to be able to choose the instance *)
   Context {keq: DecidableEq K}.
-  (* Context {veq: DecidableEq V}. *)
-  Context {Kset: SetFunctions K}.
-  Context {Vset: SetFunctions V}.
+  Context {veq: DecidableEq V}.
 
   (* however, "rewrite get_intersect_map" (and probably others) won't pick up a veq typeclass
      in scope, and the rewrite will fail, so we prefer to hardcode an instance derived from
      KVMap: *)
-  Local Instance veq: DecidableEq V := @set_elem_eq_dec V map_range_set.
 
   Definition extends(s1 s2: map K V) := forall x w, get s2 x = Some w -> get s1 x = Some w.
 
-  Definition bw_extends(s1 s2: map K V) := forall k v,
-      reverse_get s2 v = Some k -> reverse_get s1 v = Some k.
+  Definition only_differ(s1: map K V)(ks: K -> Prop)(s2: map K V) :=
+    forall x, ks x \/ get s1 x = get s2 x.
 
-  Definition only_differ(s1: map K V)(vs: set K)(s2: map K V) :=
-    forall x, x \in vs \/ get s1 x = get s2 x.
+  Definition agree_on(s1: map K V)(ks: K -> Prop)(s2: map K V) :=
+    forall x, ks x -> get s1 x = get s2 x.
 
-  Definition agree_on(s1: map K V)(vs: set K)(s2: map K V) :=
-    forall x, x \in vs -> get s1 x = get s2 x.
-
-  Definition undef_on(s: map K V)(vs: set K) := forall x, x \in vs -> get s x = None.
+  Definition undef_on(s: map K V)(ks: K -> Prop) := forall x, ks x -> get s x = None.
 
   Ltac prover :=
     intros;
@@ -2134,10 +2005,6 @@ Section MapDefinitions.
     get (put s x v) y = if dec (x = y) then Some v else get s y.
   Proof. prover. Qed.
 
-  Lemma get_restrict: forall m k ks,
-      get (restrict m ks) k = if dec (k \in ks) then get m k else None.
-  Proof. prover. Qed.
-
   Lemma get_intersect_map: forall k m1 m2,
       get (intersect_map m1 m2) k =
       match get m1 k, get m2 k with
@@ -2160,27 +2027,6 @@ Section MapDefinitions.
       firstorder congruence.
   Qed.
 
-  Lemma get_remove_keys: forall m k ks,
-      get (remove_keys m ks) k =
-      match get m k with
-      | Some v => if dec (k \in ks) then None else Some v
-      | None => None
-      end.
-  Proof. prover. Qed.
-
-  Lemma get_remove_by_value: forall m k v,
-      get (remove_by_value m v) k =
-      if dec (get m k = Some v) then None else get m k.
-  Proof. prover. Qed.
-
-  Lemma get_remove_values: forall m k vs,
-      get (remove_values m vs) k =
-      match get m k with
-      | Some v => if dec (v \in vs) then None else Some v
-      | None => None
-      end.
-  Proof. prover. Qed.
-
   Lemma get_update_map: forall m1 m2 k,
       get (update_map m1 m2) k =
       match get m2 k with
@@ -2191,59 +2037,61 @@ Section MapDefinitions.
 
 End MapDefinitions.
 
-Hint Unfold extends bw_extends only_differ agree_on undef_on : unf_map_defs.
+Hint Unfold extends only_differ agree_on undef_on : unf_map_defs.
 
-Ltac rew_set_op_map_specs H :=
+Ltac one_rew_map_specs e rewriter :=
+  match e with
+  | context[get ?m] =>
+    lazymatch m with
+    | empty_map => rewriter get_empty
+    | remove_key _ _ => rewriter (get_remove_key (keq := _))
+    | put _ _ => rewriter (get_put (keq := _))
+    | intersect_map _ _ => rewriter (get_intersect_map (veq := _))
+    | update_map _ _ => rewriter get_update_map
+    end
+  end.
+
+Ltac rew_map_specs_in H :=
+  let rewriter lemma := rewrite lemma in H in
+  repeat (let e := type of H in one_rew_map_specs e rewriter).
+
+Ltac rew_map_specs_in_goal :=
+  let rewriter lemma := (rewrite lemma) in
+  repeat match goal with
+         | |- ?G => one_rew_map_specs G rewriter
+         end.
+
+(*
+Ltac rew_map_specs_in H :=
   let t lemma := rewrite lemma in H in
       repeat match type of H with
              (* rew_map_specs *)
              | context[get ?m] =>
-                 lazymatch m with
+               lazymatch m with
+                 | empty_map => t get_empty
                  | remove_key _ _ => t (get_remove_key (keq := _))
-                 | put _ _ => t get_put
-                 | restrict _ _ => t get_restrict
-                 | intersect_map _ _ => t get_intersect_map
-                 | remove_keys _ _ => t get_remove_keys
-                 | remove_by_value _ _ => t get_remove_by_value
-                 | remove_values _ _ => t get_remove_values
+                 | put _ _ => t (get_put (keq := _))
+                 | intersect_map _ _ => t (get_intersect_map (veq := _))
                  | update_map _ _ => t get_update_map
                  end
-             | context[_ \in domain _] => t domain_spec
-             | context[_ \in range _] => t range_spec
+             end.*)
 
-             (* rew_set_op_specs *)
-             | context[_ \in empty_set] => t empty_set_spec
-             | context[_ \in singleton_set _] => t singleton_set_spec
-             | context[_ \in union _ _] => t union_spec
-             | context[_ \in intersect _ _] => t intersect_spec
-             | context[_ \in diff _ _] => t diff_spec
-             end.
-
+(* TODO remove *)
 Hint Rewrite
      @get_empty
      @get_remove_key
      @get_put
-     @get_restrict
      @get_intersect_map
-     @get_remove_keys
-     @get_remove_by_value
-     @get_remove_values
      @get_update_map
-     @domain_spec
-     @range_spec
-     (* Note: reverse_get doesn't have a one-lemma spec, so map_solver will not
-        automatically figure out that it should destruct this option *)
-     (*@reverse_get_Some <-- will not replace reverse_get *)
-     (*@reverse_get_None <-- not usable for rewrite *)
   : rew_map_specs.
 
-
+(* TODO remove *)
 Ltac rewrite_get_put K V :=
   let keq := constr:(_: DecidableEq K) in
   rewrite? (@get_put K V _ keq) in *.
 
 Ltac canonicalize_map_hyp H :=
-  rew_set_op_map_specs H;
+  rew_map_specs_in H;
   try exists_to_forall H;
   try specialize (H eq_refl).
 
@@ -2252,14 +2100,13 @@ Ltac canonicalize_all K V :=
          | H: _ |- _ => progress canonicalize_map_hyp H
          end;
   invert_Some_eq_Some;
-  repeat (autorewrite with rew_set_op_specs rew_map_specs || rewrite_get_put K V).
+  repeat (rew_map_specs_in_goal || rewrite_get_put K V).
 
 Ltac map_solver_should_destruct K V d :=
   let T := type of d in
   first [ unify T (option K)
         | unify T (option V)
         | match T with
-          | {?x \in ?A} + {~ ?x \in ?A} => idtac
           | {?x1 = ?x2} + {?x1 <> ?x2} =>
             let T' := type of x1 in
             first [ unify T' K
@@ -2269,7 +2116,7 @@ Ltac map_solver_should_destruct K V d :=
           end ].
 
 Ltac destruct_one_map_match K V :=
-  destruct_one_match_hyporgoal_test ltac:(map_solver_should_destruct K V) ltac:(fun H => rew_set_op_map_specs H).
+  destruct_one_match_hyporgoal_test ltac:(map_solver_should_destruct K V) ltac:(fun H => rew_map_specs_in H).
 
 Ltac propositional :=
   repeat match goal with
@@ -2313,7 +2160,7 @@ Ltac pick_one_existential :=
 Ltac map_solver K V :=
   assert_is_type K;
   assert_is_type V;
-  repeat autounfold with unf_map_defs unf_set_defs in *;
+  repeat autounfold with unf_map_defs in *;
   destruct_products;
   repeat match goal with
          | |- forall _, _ => progress intros until 0
@@ -2377,8 +2224,6 @@ Section Tests.
 
   Context {stateMap: MapFunctions var val}.
   Notation state := (map var val).
-  Context {varset: SetFunctions var}.
-  Notation vars := (set var).
 
   Ltac t := map_solver var val.
 
@@ -2413,16 +2258,16 @@ Section Tests.
 
   Lemma only_differ_union_l: forall s1 s2 r1 r2,
     only_differ s1 r1 s2 ->
-    only_differ s1 (union r1 r2) s2.
+    only_differ s1 (fun x => r1 x \/ r2 x) s2.
   Proof. t. Qed.
 
   Lemma only_differ_union_r: forall s1 s2 r1 r2,
     only_differ s1 r2 s2 ->
-    only_differ s1 (union r1 r2) s2.
+    only_differ s1 (fun x => r1 x \/ r2 x) s2.
   Proof. t. Qed.
 
   Lemma only_differ_one: forall s x v,
-    only_differ s (singleton_set x) (put s x v).
+    only_differ s (fun y => x = y) (put s x v).
   Proof. t. Qed.
 
   Lemma only_differ_refl: forall s1 r,
@@ -2440,14 +2285,14 @@ Section Tests.
     only_differ s1 r s3.
   Proof. t. Qed.
 
-  Lemma undef_on_shrink: forall st vs1 vs2,
+  Lemma undef_on_shrink: forall st (vs1 vs2: var -> Prop),
     undef_on st vs1 ->
-    subset vs2 vs1 ->
+    (forall v, vs2 v -> vs1 v) ->
     undef_on st vs2.
   Proof. t. Qed.
 
-  Lemma only_differ_subset: forall s1 s2 r1 r2,
-    subset r1 r2 ->
+  Lemma only_differ_subset: forall s1 s2 (r1 r2: var -> Prop),
+    (forall x, r1 x -> r2 x) ->
     only_differ s1 r1 s2 ->
     only_differ s1 r2 s2.
   Proof. t. Qed.
@@ -2486,32 +2331,15 @@ Section Tests.
     (* might hold, but who wants to use that? *)
   Abort.
 
-  Lemma bw_extends_put_same: forall m1 m2 k v,
-      bw_extends m1 m2 ->
-      bw_extends (put (remove_by_value m1 v) k v) (put (remove_by_value m2 v) k v).
-  Proof.
-    unfold bw_extends.
-    intros.
-    apply reverse_get_Some in H0.
-    destruct (dec (k = k0)).
-    - subst k0.
-      rewrite get_put_same in H0. inversion H0. subst v0.
-      admit.
-    - rewrite get_put_diff in H0 by assumption.
-      rewrite get_remove_by_value in H0.
-      destruct (dec (get m2 k0 = Some v)); [discriminate|].
-      assert (v <> v0) by congruence.
-  Abort.
-
   Lemma only_differ_get_unchanged: forall s1 s2 x v d,
     get s1 x = v ->
     only_differ s1 d s2 ->
-    ~ x \in d ->
+    ~  d x ->
     get s2 x = v.
   Proof. t. Qed.
 
-  Lemma only_differ_put: forall s (d: vars) x v,
-    x \in d ->
+  Lemma only_differ_put: forall s (d: var -> Prop) x v,
+    d x ->
     only_differ s d (put s x v).
   Proof. t. Qed.
 
@@ -2525,18 +2353,18 @@ Set Ltac Profiling.
 Section Lemmas.
   Context {K V: Type}.
   Context {Map: MapFunctions K V}.
-  Local Instance Kset: SetFunctions K := map_domain_set.
-  Local Instance Vset: SetFunctions V := map_range_set.
-  Local Instance K_eq_dec: DecidableEq K := set_elem_eq_dec.
-  Local Instance V_eq_dec: DecidableEq V := set_elem_eq_dec.
+  Context {K_eq_dec: DecidableEq K}.
+  Context {V_eq_dec: DecidableEq V}.
 
+  Notation "x '\in' s" := (s x) (at level 70, no associativity, only parsing).
+  Notation "'subset' a b" := (forall x, a x -> b x) (at level 10, a at level 0, b at level 0).
 
   (** *** Part 1: Lemmas which hold *)
 
   Goal False. idtac "Part 1a: Small goals (originally took <5s each)". Abort.
 
   Lemma flattenExpr_correct_aux_lemma1:
-    forall (resVar : K) (initialH initialL : map K V) (fvngs1 : set K) (v0 : V),
+    forall (resVar : K) (initialH initialL : map K V) (fvngs1 : K -> Prop) (v0 : V),
       extends initialL initialH ->
       undef_on initialH fvngs1 -> get (put initialL resVar v0) resVar = Some v0.
   Proof.
@@ -2544,7 +2372,7 @@ Section Lemmas.
   Qed.
 
   Lemma flattenExpr_correct_aux_lemma2:
-    forall (x resVar : K) (initialH initialL : map K V) (res : V) (fvngs1 : set K),
+    forall (x resVar : K) (initialH initialL : map K V) (res : V) (fvngs1 : K -> Prop),
       extends initialL initialH ->
       undef_on initialH fvngs1 ->
       get initialH x = Some res -> get (put initialL resVar res) resVar = get initialH x.
@@ -2553,8 +2381,8 @@ Section Lemmas.
   Qed.
 
   Lemma flattenExpr_correct_aux_lemma3:
-    forall (initialH initialL : map K V) (v : K) (fvngs1 : set K) (v0 : K)
-           (fvn fvn0 mvs1 mvs0 : set K),
+    forall (initialH initialL : map K V) (v : K) (fvngs1 : K -> Prop) (v0 : K)
+           (fvn fvn0 mvs1 mvs0 : K -> Prop),
       extends initialL initialH ->
       undef_on initialH fvngs1 ->
       subset fvn0 fvn ->
@@ -2567,8 +2395,8 @@ Section Lemmas.
   Qed.
 
   Lemma flattenExpr_correct_aux_lemma4:
-    forall (initialH initialL : map K V) (v v0 : K) (midL : map K V) (fvngs1 : set K)
-           (w : V) (fvn fvn0 mvs1 mvs0 : set K),
+    forall (initialH initialL : map K V) (v v0 : K) (midL : map K V) (fvngs1 : K -> Prop)
+           (w : V) (fvn fvn0 mvs1 mvs0 : K -> Prop),
       extends initialL initialH ->
       undef_on initialH fvngs1 ->
       subset fvn0 fvn ->
@@ -2583,8 +2411,8 @@ Section Lemmas.
   Qed.
 
   Lemma flattenExpr_correct_aux_lemma5:
-    forall (initialH initialL : map K V) (v v0 : K) (midL : map K V) (fvngs1 : set K)
-           (w : V) (fvn fvn0 mvs1 mvs0 : set K),
+    forall (initialH initialL : map K V) (v v0 : K) (midL : map K V) (fvngs1 : K -> Prop)
+           (w : V) (fvn fvn0 mvs1 mvs0 : K -> Prop),
       extends initialL initialH ->
       undef_on initialH fvngs1 ->
       subset fvn0 fvn ->
@@ -2599,8 +2427,8 @@ Section Lemmas.
   Qed.
 
   Lemma flattenExpr_correct_aux_lemma6:
-    forall (initialH initialL : map K V) (v v0 : K) (midL : map K V) (fvngs1 : set K)
-           (w w0 : V) (fvn fvn0 mvs1 mvs0 : set K) (preFinalL : map K V),
+    forall (initialH initialL : map K V) (v v0 : K) (midL : map K V) (fvngs1 : K -> Prop)
+           (w w0 : V) (fvn fvn0 mvs1 mvs0 : K -> Prop) (preFinalL : map K V),
       extends initialL initialH ->
       undef_on initialH fvngs1 ->
       subset fvn0 fvn ->
@@ -2617,8 +2445,8 @@ Section Lemmas.
   Qed.
 
   Lemma flattenStmt_correct_aux_lemma7:
-    forall (initialH initial2L initialL : map K V) (fvngs emv : set K)
-           (cv Z0 : V) (v : K) (fvn mvcondL fvn0 fvngs' : set K),
+    forall (initialH initial2L initialL : map K V) (fvngs emv : K -> Prop)
+           (cv Z0 : V) (v : K) (fvn mvcondL fvn0 fvngs' : K -> Prop),
       extends initialL initialH ->
       undef_on initialH fvngs ->
       disjoint emv fvngs ->
@@ -2635,8 +2463,8 @@ Section Lemmas.
   Qed.
 
   Lemma flattenStmt_correct_aux_lemma8:
-    forall (initialH initial2L initialL : map K V) (fvngs emv : set K)
-           (cv Z0 : V) (v : K) (fvn mvcondL fvn0 fvngs' : set K),
+    forall (initialH initial2L initialL : map K V) (fvngs emv : K -> Prop)
+           (cv Z0 : V) (v : K) (fvn mvcondL fvn0 fvngs' : K -> Prop),
       extends initialL initialH ->
       undef_on initialH fvngs ->
       disjoint emv fvngs ->
@@ -2654,7 +2482,7 @@ Section Lemmas.
   Qed.
 
   Lemma flattenStmt_correct_aux_lemma_rewrite_get_key:
-    forall (lhs : K) (initialH initialL : map K V) (fvngs' emv : set K),
+    forall (lhs : K) (initialH initialL : map K V) (fvngs' emv : K -> Prop),
       extends initialL initialH ->
       disjoint emv fvngs' ->
       undef_on initialH fvngs' ->
@@ -2667,8 +2495,8 @@ Section Lemmas.
   Goal False. idtac "Part 1b: Medium goals (originally took >5s each)". Abort.
 
   Lemma flattenStmt_correct_aux_lemma1:
-    forall (lhs : K) (initialH initialL : map K V) (fvngs emv : set K)
-           (v : V) (v0 : K) (prefinalL : map K V) (fvngs' mvs : set K),
+    forall (lhs : K) (initialH initialL : map K V) (fvngs emv : K -> Prop)
+           (v : V) (v0 : K) (prefinalL : map K V) (fvngs' mvs : K -> Prop),
       extends initialL initialH ->
       undef_on initialH fvngs ->
       disjoint emv fvngs ->
@@ -2682,8 +2510,8 @@ Section Lemmas.
   Qed.
 
   Lemma flattenStmt_correct_aux_lemma2:
-    forall (initialH initialL : map K V) (fvngs emv : set K) (av : V)
-           (v v0 : K) (prefinalL : map K V) (fvn fvngs' mvs mvs0 : set K),
+    forall (initialH initialL : map K V) (fvngs emv : K -> Prop) (av : V)
+           (v v0 : K) (prefinalL : map K V) (fvn fvngs' mvs mvs0 : K -> Prop),
       extends initialL initialH ->
       undef_on initialH fvngs ->
       disjoint emv fvngs ->
@@ -2701,8 +2529,8 @@ Section Lemmas.
   Qed.
 
   Lemma flattenStmt_correct_aux_lemma3:
-    forall (initialH initialL : map K V) (fvngs emv : set K) (av : V)
-           (v v0 : K) (prefinalL : map K V) (fvn fvngs' mvs mvs0 : set K),
+    forall (initialH initialL : map K V) (fvngs emv : K -> Prop) (av : V)
+           (v v0 : K) (prefinalL : map K V) (fvn fvngs' mvs mvs0 : K -> Prop),
       extends initialL initialH ->
       undef_on initialH fvngs ->
       disjoint emv fvngs ->
@@ -2718,8 +2546,8 @@ Section Lemmas.
   Qed.
 
   Lemma flattenStmt_correct_aux_lemma4:
-    forall (initialH initialL : map K V) (fvngs : set K) (av vv : V) (v v0 : K)
-           (prefinalL finalL : map K V) (fvn fvngs' mvs mvs0 : set K),
+    forall (initialH initialL : map K V) (fvngs : K -> Prop) (av vv : V) (v v0 : K)
+           (prefinalL finalL : map K V) (fvn fvngs' mvs mvs0 : K -> Prop),
       extends initialL initialH ->
       undef_on initialH fvngs ->
       disjoint empty_set fvngs ->
@@ -2737,8 +2565,8 @@ Section Lemmas.
   Qed.
 
   Lemma flattenStmt_correct_aux_lemma5:
-    forall (initialH initialL : map K V) (fvngs : set K) (av vv : V) (v v0 : K)
-           (prefinalL finalL : map K V) (fvn fvngs' mvs mvs0 : set K),
+    forall (initialH initialL : map K V) (fvngs : K -> Prop) (av vv : V) (v v0 : K)
+           (prefinalL finalL : map K V) (fvn fvngs' mvs mvs0 : K -> Prop),
       extends initialL initialH ->
       undef_on initialH fvngs ->
       disjoint empty_set fvngs ->
@@ -2756,8 +2584,8 @@ Section Lemmas.
   Qed.
 
   Lemma flattenStmt_correct_aux_lemma9:
-    forall (v : K) (st2 middleL initialH initialL : map K V) (fvngs emv : set K)
-           (cv Z0 : V) (initial2L : map K V) (fvn mvsCond fvngs' mvsBody : set K),
+    forall (v : K) (st2 middleL initialH initialL : map K V) (fvngs emv : K -> Prop)
+           (cv Z0 : V) (initial2L : map K V) (fvn mvsCond fvngs' mvsBody : K -> Prop),
       extends initialL initialH ->
       undef_on initialH fvngs ->
       disjoint emv fvngs ->
@@ -2775,8 +2603,8 @@ Section Lemmas.
   Qed.
 
   Lemma flattenStmt_correct_aux_lemma10:
-    forall (v : K) (st2 middleL initialH initialL : map K V) (fvngs emv : set K)
-           (cv Z0 : V) (initial2L : map K V) (fvn mvsCond fvngs' mvsBody : set K),
+    forall (v : K) (st2 middleL initialH initialL : map K V) (fvngs emv : K -> Prop)
+           (cv Z0 : V) (initial2L : map K V) (fvn mvsCond fvngs' mvsBody : K -> Prop),
       extends initialL initialH ->
       undef_on initialH fvngs ->
       disjoint emv fvngs ->
@@ -2799,8 +2627,8 @@ Section Lemmas.
   Goal False. idtac "Part 1c: Large goals (originally took >50s each)". Abort.
 
   Lemma flattenStmt_correct_aux_lemma6:
-    forall (initialH initialL : map K V) (fvngs emv : set K) (av vv : V)
-           (v v0 : K) (prefinalL finalL : map K V) (fvn fvngs' mvs0 mvs : set K),
+    forall (initialH initialL : map K V) (fvngs emv : K -> Prop) (av vv : V)
+           (v v0 : K) (prefinalL finalL : map K V) (fvn fvngs' mvs0 mvs : K -> Prop),
       extends initialL initialH ->
       undef_on initialH fvngs ->
       disjoint emv fvngs ->
@@ -2818,8 +2646,8 @@ Section Lemmas.
   Qed.
 
   Lemma RegAlloc2_updateWith_alt1_if:
-    forall (m : map K V) (ps1 : set V) (pi1 : set K) (g1 u1 : map K V)
-           (ps2 : set V) (pi2 : set K) (g2 u2 : map K V),
+    forall (m : map K V) (ps1 : set V) (pi1 : K -> Prop) (g1 u1 : map K V)
+           (ps2 : set V) (pi2 : K -> Prop) (g2 u2 : map K V),
       extends u1 (update_map (remove_keys (remove_values m ps1) pi1) g1) ->
       extends u2 (update_map (remove_keys (remove_values m ps2) pi2) g2) ->
       subset (range g1) ps1 ->
@@ -2888,8 +2716,8 @@ Section Lemmas.
   Goal False. idtac "Part 2c: Large false goals (originally took >50s each)". Abort.
 
   Lemma RegAlloc2_updateWith_alt1_while_with_uninterpreted_function:
-    forall (m : map K V) (ps1 : set V) (pi1 : set K) (g1 : map K V) (ps2 : set V)
-           (pi2 : set K) (g2 : map K V) (astmt: Type) (f : map K V -> astmt -> map K V)
+    forall (m : map K V) (ps1 : set V) (pi1 : K -> Prop) (g1 : map K V) (ps2 : set V)
+           (pi2 : K -> Prop) (g2 : map K V) (astmt: Type) (f : map K V -> astmt -> map K V)
            (s1 s2 : astmt),
       extends (f m s1) (update_map (remove_keys (remove_values m ps1) pi1) g1) ->
       extends (f m s2) (update_map (remove_keys (remove_values m ps2) pi2) g2) ->
