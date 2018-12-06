@@ -431,7 +431,7 @@ Ltac one_rew_map_specs e rewriter :=
     lazymatch m with
     | empty_map => rewriter get_empty
     | remove_key _ _ => rewriter (get_remove_key (keq := _))
-    | put _ _ => rewriter (get_put (keq := _))
+    | put _ _ _ => rewriter (get_put (keq := _))
     | intersect_map _ _ => rewriter (get_intersect_map (veq := _))
     | put_map _ _ => rewriter get_put_map
     end
@@ -447,35 +447,6 @@ Ltac rew_map_specs_in_goal :=
          | |- ?G => one_rew_map_specs G rewriter
          end.
 
-(*
-Ltac rew_map_specs_in H :=
-  let t lemma := rewrite lemma in H in
-      repeat match type of H with
-             (* rew_map_specs *)
-             | context[get ?m] =>
-               lazymatch m with
-                 | empty_map => t get_empty
-                 | remove_key _ _ => t (get_remove_key (keq := _))
-                 | put _ _ => t (get_put (keq := _))
-                 | intersect_map _ _ => t (get_intersect_map (veq := _))
-                 | put_map _ _ => t get_put_map
-                 end
-             end.*)
-
-(* TODO remove *)
-Hint Rewrite
-     @get_empty
-     @get_remove_key
-     @get_put
-     @get_intersect_map
-     @get_put_map
-  : rew_map_specs.
-
-(* TODO remove *)
-Ltac rewrite_get_put K V :=
-  let keq := constr:(_: DecidableEq K) in
-  rewrite? (@get_put K V _ keq) in *.
-
 Ltac canonicalize_map_hyp H :=
   rew_map_specs_in H;
   try exists_to_forall H;
@@ -486,7 +457,7 @@ Ltac canonicalize_all K V :=
          | H: _ |- _ => progress canonicalize_map_hyp H
          end;
   invert_Some_eq_Some;
-  repeat (rew_map_specs_in_goal || rewrite_get_put K V).
+  rew_map_specs_in_goal.
 
 Ltac map_solver_should_destruct K V d :=
   let T := type of d in
