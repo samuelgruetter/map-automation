@@ -1897,6 +1897,43 @@ Ltac invert_Some_eq_Some :=
               apply forall_Some_eq_Some in H; subst y
          end.
 
+
+Notation "x '\in' s" := (s x) (at level 70, no associativity, only parsing).
+
+Section PropSet.
+  Context {E: Type}.
+
+  Definition empty_set: E -> Prop := fun _ => False.
+  Definition singleton_set: E -> (E -> Prop) := eq.
+  Definition union: (E -> Prop) -> (E -> Prop) -> (E -> Prop) :=
+    fun s1 s2 x => s1 x \/ s2 x.
+  Definition intersect: (E -> Prop) -> (E -> Prop) -> (E -> Prop) :=
+    fun s1 s2 x => s1 x /\ s2 x.
+  Definition diff: (E -> Prop) -> (E -> Prop) -> (E -> Prop) :=
+    fun s1 s2 x => s1 x /\ ~ s2 x.
+
+  Definition add(s: E -> Prop)(e: E) := union (singleton_set e) s.
+  Definition remove(s: E -> Prop)(e: E) := diff s (singleton_set e).
+  Definition subset(s1 s2: E -> Prop) := forall x, x \in s1 -> x \in s2.
+  Definition disjoint(s1 s2: E -> Prop) := forall x, (~ x \in s1) \/ (~ x \in s2).
+  Definition of_list l := List.fold_right union empty_set (List.map singleton_set l).
+
+End PropSet.
+
+Hint Unfold
+     empty_set
+     singleton_set
+     union
+     intersect
+     diff
+     add
+     remove
+     subset
+     disjoint
+     of_list
+  : unf_set_defs.
+
+
 (* ** ../bedrock2/compiler/src/util/Map.v *)
 (* Require Import lib.fiat_crypto_tactics.Not. *)
 (* Require Import compiler.util.Set. *)
@@ -1920,19 +1957,9 @@ Class MapFunctions(K V: Type) := mkMap {
   get_put_same: forall (m: map) (k: K) (v: V), get (put m k v) k = Some v;
   get_put_diff: forall (m: map) (k1 k2: K) (v: V), k1 <> k2 -> get (put m k1 v) k2 = get m k2;
 
-  reverse_get: map -> V -> option K;
-  reverse_get_Some: forall m k v, reverse_get m v = Some k -> get m k = Some v;
-  reverse_get_None: forall m v, reverse_get m v = None -> forall k, get m k <> Some v;
-
   intersect_map: map -> map -> map;
   intersect_map_spec: forall k v m1 m2,
       get (intersect_map m1 m2) k = Some v <-> get m1 k = Some v /\ get m2 k = Some v;
-
-  remove_by_value: map -> V -> map;
-  remove_by_value_same: forall k v m,
-      get m k = Some v -> get (remove_by_value m v) k = None;
-  remove_by_value_diff: forall k v m,
-      get m k <> Some v -> get (remove_by_value m v) k = get m k;
 
   update_map: map -> map -> map;
   get_update_map_l: forall m1 m2 k,
@@ -2160,15 +2187,13 @@ Ltac pick_one_existential :=
 Ltac map_solver K V :=
   assert_is_type K;
   assert_is_type V;
-  repeat autounfold with unf_map_defs in *;
+  repeat autounfold with unf_set_defs unf_map_defs in *;
   destruct_products;
   repeat match goal with
          | |- forall _, _ => progress intros until 0
          | |- _ -> _ => let H := fresh "Hyp" in intro H
          end;
   canonicalize_all K V;
-  let RGN := fresh "RGN" in pose proof (@reverse_get_None K V _) as RGN;
-  let RGS := fresh "RGS" in pose proof (@reverse_get_Some K V _) as RGS;
   repeat match goal with
   | H: forall (x: ?E), _, y: ?E |- _ =>
     first [ unify E K | unify E V ];
@@ -2315,22 +2340,6 @@ Section Tests.
     extends (put s2 x v) (put s1 x v).
   Proof. t. Qed.
 
-  Lemma reverse_get_put_diff: forall m v1 v2 k,
-      v1 <> v2 ->
-      reverse_get (put m k v1) v2 = reverse_get m v2.
-  Proof.
-    (* might not hold for an efficient implementation which restructures the map on "put" *)
-  Abort.
-
-  Lemma reverse_get_put: forall m v1 v2 k1,
-      let q := reverse_get (put m k1 v1) v2 in
-      ((exists k2, reverse_get m v2 = Some k2) /\
-       ((exists k2, q = Some k2) \/ (q = Some k1 /\ v1 = v2))) \/
-      (reverse_get m v1 = None /\ (q = if (dec (v1 = v2)) then Some k1 else None)).
-  Proof.
-    (* might hold, but who wants to use that? *)
-  Abort.
-
   Lemma only_differ_get_unchanged: forall s1 s2 x v d,
     get s1 x = v ->
     only_differ s1 d s2 ->
@@ -2355,9 +2364,6 @@ Section Lemmas.
   Context {Map: MapFunctions K V}.
   Context {K_eq_dec: DecidableEq K}.
   Context {V_eq_dec: DecidableEq V}.
-
-  Notation "x '\in' s" := (s x) (at level 70, no associativity, only parsing).
-  Notation "'subset' a b" := (forall x, a x -> b x) (at level 10, a at level 0, b at level 0).
 
   (** *** Part 1: Lemmas which hold *)
 
@@ -2644,92 +2650,6 @@ Section Lemmas.
   Proof.
     Time map_solver K V.
   Qed.
-
-  Lemma RegAlloc2_updateWith_alt1_if:
-    forall (m : map K V) (ps1 : set V) (pi1 : K -> Prop) (g1 u1 : map K V)
-           (ps2 : set V) (pi2 : K -> Prop) (g2 u2 : map K V),
-      extends u1 (update_map (remove_keys (remove_values m ps1) pi1) g1) ->
-      extends u2 (update_map (remove_keys (remove_values m ps2) pi2) g2) ->
-      subset (range g1) ps1 ->
-      subset (range g2) ps2 ->
-      subset (domain g1) pi1 ->
-      subset (domain g2) pi2 ->
-      extends (intersect_map u1 u2)
-              (update_map (remove_keys (remove_values m (union ps1 ps2)) (union pi1 pi2))
-                          (intersect_map g1 g2)).
-  Proof.
-    Time map_solver K V.
-  Qed.
-
-  (** *** Part 2: False conjectures *)
-
-  Goal False. idtac "Part 2a: Small false goals (originally took <5s each)". Abort.
-
-  Lemma RegAlloc2_conjecture1: forall m1 m2,
-      disjoint (domain (remove_values m1 (range m2))) (domain m2).
-  Proof.
-    Time map_solver K V.
-  Abort.
-
-  Lemma RegAlloc2_conjecture2: forall g1 p1 g2 p2 r,
-      subset (range g1) p1 ->
-      subset (range g2) p2 ->
-      extends (update_map (remove_values r p1) g1)
-              (update_map (remove_values r (union p1 p2)) (intersect_map g1 g2)).
-  Proof.
-    Time map_solver K V.
-  Abort.
-
-  Lemma RegAlloc2_conjecture3: forall g1 p1 g2 p2 r,
-      subset (range g1) p1 ->
-      subset (range g2) p2 ->
-      subset (range (intersect_map g1 g2)) (union p1 p2) ->
-      extends (update_map (remove_values r p1) g1)
-              (update_map (remove_values r (union p1 p2)) (intersect_map g1 g2)).
-  Proof.
-    Time map_solver K V.
-  Abort.
-
-
-  Goal False. idtac "Part 2b: Medium false goals (originally took >5s each)". Abort.
-
-  Lemma RegAlloc2_conjecture4: forall u1 p1 g1 u2 p2 g2 m,
-      extends u1 (update_map (remove_values m p1) g1) ->
-      extends u2 (update_map (remove_values m p2) g2) ->
-      extends (intersect_map u1 u2)
-              (update_map (remove_values m (union p1 p2)) (intersect_map g1 g2)).
-  Proof.
-    Time map_solver K V.
-  Abort.
-
-  Lemma RegAlloc2_conjecture5: forall u1 p1 g1 u2 p2 g2 m,
-      extends u1 (update_map (remove_values m p1) g1) ->
-      extends u2 (update_map (remove_values m p2) g2) ->
-      subset (range g1) p1 ->
-      subset (range g2) p2 ->
-      extends (intersect_map u1 u2)
-              (update_map (remove_values m (union p1 p2)) (intersect_map g1 g2)).
-  Proof.
-    Time map_solver K V.
-  Abort.
-
-  Goal False. idtac "Part 2c: Large false goals (originally took >50s each)". Abort.
-
-  Lemma RegAlloc2_updateWith_alt1_while_with_uninterpreted_function:
-    forall (m : map K V) (ps1 : set V) (pi1 : K -> Prop) (g1 : map K V) (ps2 : set V)
-           (pi2 : K -> Prop) (g2 : map K V) (astmt: Type) (f : map K V -> astmt -> map K V)
-           (s1 s2 : astmt),
-      extends (f m s1) (update_map (remove_keys (remove_values m ps1) pi1) g1) ->
-      extends (f m s2) (update_map (remove_keys (remove_values m ps2) pi2) g2) ->
-      subset (range g1) ps1 ->
-      subset (range g2) ps2 ->
-      subset (domain g1) pi1 ->
-      subset (domain g2) pi2 ->
-      extends (intersect_map (f m s1) (f (f (f m s1) s2) s1))
-              (update_map (remove_keys (remove_values m (union ps1 ps2)) (union pi1 pi2)) g1).
-  Proof.
-    Time map_solver K V.
-  Abort.
 
 End Lemmas.
 
